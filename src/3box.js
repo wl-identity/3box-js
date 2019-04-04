@@ -44,9 +44,9 @@ class Box {
   /**
    * Please use the **openBox** method to instantiate a 3Box
    */
-  constructor (threeId, ethereumProvider, ipfs, opts = {}) {
+  constructor (threeId, ipfs, opts = {}) {
     this._3id = threeId
-    this._web3provider = ethereumProvider
+    this._web3provider = opts.ethereum
     this._ipfs = ipfs
     this._serverUrl = opts.addressServer || ADDRESS_SERVER_URL
     this._onSyncDoneCB = () => {}
@@ -338,8 +338,18 @@ class Box {
     // opts = Object.assign({ iframeStore: true }, opts)
     const ipfs = globalIPFS || await initIPFS(opts.ipfs, opts.iframeStore, opts.ipfsOptions)
     globalIPFS = ipfs
-    const _3id = await ThreeId.getIdFromEthAddress(address, ethereumProvider, ipfs, opts)
-    const box = new Box(_3id, ethereumProvider, ipfs, opts)
+    opts.ethereum = ethereumProvider
+    const _3id = await ThreeId.getIdFromEthAddress(address, ipfs, opts)
+    const box = new Box(_3id, ipfs, opts)
+    await box._load(opts)
+    return box
+  }
+
+  static async open (opts = {}) {
+    const ipfs = globalIPFS || await initIPFS(opts.ipfs, opts.iframeStore, opts.ipfsOptions)
+    globalIPFS = ipfs
+    const _3id = await ThreeId.getIdFromAuth(ipfs, opts)
+    const box = new Box(_3id, ipfs, opts)
     await box._load(opts)
     return box
   }
@@ -398,12 +408,15 @@ class Box {
   }
 
   async _linkProfile () {
+    if (!this._web3provider) return
     let linkData = await this.public.get('ethereum_proof')
 
     if (!linkData) {
       const address = this._3id.managementAddress
       const did = this._3id.getDid()
 
+      // TODO - the getLinkConsent function can be moved to 3id.
+      // That way we don't have to have the web3 provider in the box class
       const consent = await utils.getLinkConsent(address, did, this._web3provider)
 
       linkData = {

@@ -1,4 +1,5 @@
 const { HDNode } = require('ethers').utils
+const { caller } = require('postmsg-rpc')
 const didJWT = require('did-jwt')
 const IpfsMini = require('ipfs-mini')
 const localstorage = require('store')
@@ -9,13 +10,42 @@ const config = require('../config.js')
 const STORAGE_KEY = 'serialized3id_'
 const MUPORT_IPFS = { host: config.muport_ipfs_host, port: config.muport_ipfs_port, protocol: config.muport_ipfs_protocol}
 
+let iframeLoadedPromise, authenticateApp
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute("src", config.account_frame_url)
+  iframe.style = 'width:640px; height:480px; border:0; border:none !important'
+  const contain = document.createElement('div')
+  contain.align = 'center'
+  contain.style.display = 'none'
+  contain.appendChild(iframe);
+
+  document.body.appendChild(contain)
+
+  iframeLoadedPromise = new Promise((resolve, reject) => {
+    iframe.onload = () => { resolve() }
+  })
+
+  const postMessage = iframe.contentWindow.postMessage.bind(iframe.contentWindow)
+  authenticateApp = async () => {
+    contain.style.display = 'block'
+    const auth = caller('auth', { postMessage })
+    const seed = await auth()
+    contain.style.display = 'none'
+    return `0x${seed}`
+  }
+}
+
 class ThreeId {
-  constructor (serializeState, ethereum, ipfs, opts) {
-    this._ethereum = ethereum
+  constructor (serializedState, ipfs, opts) {
+    this._ethereum = opts.ethereum
     this._ipfs = ipfs
     this._keyrings = {}
-    this._init3id(serializeState, opts)
-    localstorage.set(STORAGE_KEY + this.managementAddress, this.serializeState())
+    this._init3id(serializedState, opts)
+    if (this.managementAddress) {
+      localstorage.set(STORAGE_KEY + this.managementAddress, this.serializeState())
+    }
   }
 
   async signJWT (payload) {
@@ -42,12 +72,14 @@ class ThreeId {
     return JSON.stringify(stateObj)
   }
 
-  _init3id (serializeState) {
-    const state = JSON.parse(serializeState)
+  _init3id (serializedState) {
+    const state = JSON.parse(serializedState)
     // TODO remove toLowerCase() in future, should be sanitized elsewhere
     //      this forces existing state to correct state so that address <->
     //      rootstore relation holds
-    this.managementAddress = state.managementAddress.toLowerCase()
+    if (state.managementAddress) {
+      this.managementAddress = state.managementAddress.toLowerCase()
+    }
     this._mainKeyring = new Keyring(state.seed)
     Object.keys(state.spaceSeeds).map(name => {
       this._keyrings[name] = new Keyring(state.spaceSeeds[name])
@@ -56,7 +88,11 @@ class ThreeId {
 
   async _initMuport (muportIpfs) {
     let keys = this._mainKeyring.getPublicKeys()
-    const doc = createMuportDocument(keys.signingKey, this.managementAddress, keys.asymEncryptionKey)
+    const doc = createMuportDocument(
+      keys.signingKey,
+      this.managementAddress ? this.managementAddress : keys.managementKey,
+      keys.asymEncryptionKey
+    )
     let docHash = (await this._ipfs.files.add(Buffer.from(JSON.stringify(doc))))[0].hash
     this._muportDID = 'did:muport:' + docHash
     this.muportFingerprint = utils.sha256Multihash(this._muportDID)
@@ -99,7 +135,7 @@ class ThreeId {
     return Boolean(localstorage.get(STORAGE_KEY + address.toLowerCase()))
   }
 
-  static async getIdFromEthAddress (address, ethereum, ipfs, opts = {}) {
+  static async getIdFromEthAddress (address, ipfs, opts = {}) {
     const normalizedAddress = address.toLowerCase()
     let serialized3id = localstorage.get(STORAGE_KEY + normalizedAddress)
     if (serialized3id) {
@@ -116,7 +152,19 @@ class ThreeId {
         spaceSeeds: {}
       })
     }
-    const _3id = new ThreeId(serialized3id, ethereum, ipfs, opts)
+    const _3id = new ThreeId(serialized3id, ipfs, opts)
+    await _3id._initMuport(opts.muportIpfs || MUPORT_IPFS)
+    return _3id
+  }
+
+  static async getIdFromAuth(ipfs, opts = {}) {
+    await iframeLoadedPromise
+    const seed = await authenticateApp()
+    let serialized3id = JSON.stringify({
+      seed,
+      spaceSeeds: {}
+    })
+    const _3id = new ThreeId(serialized3id, ipfs, opts)
     await _3id._initMuport(opts.muportIpfs || MUPORT_IPFS)
     return _3id
   }
