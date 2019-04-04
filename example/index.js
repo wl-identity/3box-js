@@ -3,125 +3,130 @@ const syncComplete = (res) => {
   updateProfileData(window.box)
 }
 bopen.addEventListener('click', event => {
-
   window.ethereum.enable().then(addresses => {
-    window.Box.openBox(addresses[0],  window.ethereum, {}).then(box => {
-      box.onSyncDone(syncComplete)
-      window.box = box
-      console.log(box)
-
-      controlls.style.display = 'block'
-      updateProfileData(box)
-
-      setProfile.addEventListener('click', () => {
-        box.public.set(prkey.value, prvalue.value).then(() => {
-          prkey.value = null
-          prvalue.value = null
-          updateProfileData(box)
-        })
-      })
-      verifyGithub.addEventListener('click', () => {
-        box.verified.addGithub(gisturl.value).then(() => {
-          updateProfileData(box)
-        }).catch(error => {
-          githubUser.innerHTML = error
-        })
-      })
-
-      setPrivateStore.addEventListener('click', () => {
-        box.private.set(pskey.value, psvalue.value).then(() => {
-          pskey.value = null
-          psvalue.value = null
-        })
-      })
-
-      getPrivateStore.addEventListener('click', () => {
-        const key = getpskey.value
-        box.private.get(key).then(val => {
-          getpskey.value = null
-          updatePrivateData(key, val)
-        })
-      })
-
-      openSpace.addEventListener('click', () => {
-        const name = spaceName.value
-        const opts = {
-          onSyncDone: () => {
-            console.log('sync done in space', name)
-            updateSpaceData()
-          }
-        }
-        box.openSpace(name, opts).then(() => {
-          window.currentSpace = name
-          spacePub.innerHTML = `Public data in ${name}:`
-          spacePriv.innerHTML = `Private data in ${name}:`
-          spaceCtrl.style.display = 'block'
-          updateSpaceData()
-        })
-      })
-
-      setSpacePub.addEventListener('click', () => {
-        console.log(spkey.value, spvalue.value)
-        box.spaces[window.currentSpace].public.set(spkey.value, spvalue.value).then(() => {
-          spkey.value = null
-          spvalue.value = null
-          updateSpaceData()
-        })
-      })
-      setSpacePriv.addEventListener('click', () => {
-        console.log(sskey.value, ssvalue.value)
-        box.spaces[window.currentSpace].private.set(sskey.value, ssvalue.value).then(() => {
-          sskey.value = null
-          ssvalue.value = null
-          updateSpaceData()
-        })
-      })
-      const updateSpaceData = () => {
-        box.spaces[window.currentSpace].public.all().then(entries => {
-          spaceDataPub.innerHTML = ''
-          Object.keys(entries).map(k => {
-            spaceDataPub.innerHTML += k + ': ' + entries[k] + '<br />'
-          })
-        })
-        box.spaces[window.currentSpace].private.all().then(entries => {
-          spaceDataPriv.innerHTML = ''
-          Object.keys(entries).map(k => {
-            spaceDataPriv.innerHTML += k + ': ' + entries[k] + '<br />'
-          })
-        })
-      }
-
-      joinThread.addEventListener('click', () => {
-        const name = threadName.value
-        posts.style.display = 'block'
-        box.spaces[window.currentSpace].joinThread(name).then(thread => {
-          window.currentThread = thread
-          thread.onNewPost(post => {
-            threadData.innerHTML += post.author + ': <br />' + post.message + '<br /><br />'
-          })
-          updateThreadData()
-        })
-      })
-
-      const updateThreadData = () => {
-        threadData.innerHTML = ''
-        window.currentThread.getPosts().then(posts => {
-          posts.map(post => {
-            threadData.innerHTML += post.author + ': <br />' + post.message + '<br /><br />'
-          })
-        })
-      }
-
-      postThread.addEventListener('click', () => {
-        window.currentThread.post(postMsg.value)
-      })
-
-      bclose.addEventListener('click', () => {
-        logout(box)
-      })
-    })
+    window.Box.openBox(addresses[0],  window.ethereum, {}).then(handleBox)
   })
 })
+
+lopen.addEventListener('click', event => {
+  window.Box.open().then(handleBox)
+})
+
+const handleBox = box => {
+  box.onSyncDone(syncComplete)
+  window.box = box
+  console.log(box)
+
+  controlls.style.display = 'block'
+  updateProfileData(box)
+
+  setProfile.addEventListener('click', () => {
+    box.public.set(prkey.value, prvalue.value).then(() => {
+      prkey.value = null
+      prvalue.value = null
+      updateProfileData(box)
+    })
+  })
+  verifyGithub.addEventListener('click', () => {
+    box.verified.addGithub(gisturl.value).then(() => {
+      updateProfileData(box)
+    }).catch(error => {
+      githubUser.innerHTML = error
+    })
+  })
+
+  setPrivateStore.addEventListener('click', () => {
+    box.private.set(pskey.value, psvalue.value).then(() => {
+      pskey.value = null
+      psvalue.value = null
+    })
+  })
+
+  getPrivateStore.addEventListener('click', () => {
+    const key = getpskey.value
+    box.private.get(key).then(val => {
+      getpskey.value = null
+      updatePrivateData(key, val)
+    })
+  })
+
+  openSpace.addEventListener('click', () => {
+    const name = spaceName.value
+    const opts = {
+      onSyncDone: () => {
+        console.log('sync done in space', name)
+        updateSpaceData()
+      }
+    }
+    box.openSpace(name, opts).then(() => {
+      window.currentSpace = name
+      spacePub.innerHTML = `Public data in ${name}:`
+      spacePriv.innerHTML = `Private data in ${name}:`
+      spaceCtrl.style.display = 'block'
+      updateSpaceData()
+    })
+  })
+
+  setSpacePub.addEventListener('click', () => {
+    console.log(spkey.value, spvalue.value)
+    box.spaces[window.currentSpace].public.set(spkey.value, spvalue.value).then(() => {
+      spkey.value = null
+      spvalue.value = null
+      updateSpaceData()
+    })
+  })
+  setSpacePriv.addEventListener('click', () => {
+    console.log(sskey.value, ssvalue.value)
+    box.spaces[window.currentSpace].private.set(sskey.value, ssvalue.value).then(() => {
+      sskey.value = null
+      ssvalue.value = null
+      updateSpaceData()
+    })
+  })
+  const updateSpaceData = () => {
+    box.spaces[window.currentSpace].public.all().then(entries => {
+      spaceDataPub.innerHTML = ''
+      Object.keys(entries).map(k => {
+        spaceDataPub.innerHTML += k + ': ' + entries[k] + '<br />'
+      })
+    })
+    box.spaces[window.currentSpace].private.all().then(entries => {
+      spaceDataPriv.innerHTML = ''
+      Object.keys(entries).map(k => {
+        spaceDataPriv.innerHTML += k + ': ' + entries[k] + '<br />'
+      })
+    })
+  }
+
+  joinThread.addEventListener('click', () => {
+    const name = threadName.value
+    posts.style.display = 'block'
+    box.spaces[window.currentSpace].joinThread(name).then(thread => {
+      window.currentThread = thread
+      thread.onNewPost(post => {
+        threadData.innerHTML += post.author + ': <br />' + post.message + '<br /><br />'
+      })
+      updateThreadData()
+    })
+  })
+
+  const updateThreadData = () => {
+    threadData.innerHTML = ''
+    window.currentThread.getPosts().then(posts => {
+      posts.map(post => {
+        threadData.innerHTML += post.author + ': <br />' + post.message + '<br /><br />'
+      })
+    })
+  }
+
+  postThread.addEventListener('click', () => {
+    window.currentThread.post(postMsg.value)
+  })
+
+  bclose.addEventListener('click', () => {
+    logout(box)
+  })
+}
 
 getProfile.addEventListener('click', () => {
   console.log(ethAddr.value)

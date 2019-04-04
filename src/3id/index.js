@@ -18,7 +18,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   iframe.style = 'width:640px; height:480px; border:0; border:none !important'
   const contain = document.createElement('div')
   contain.align = 'center'
-  contain.style.display = 'none'
+  // TODO - make this styling more nice
+  contain.style = 'display: none; z-index: 999; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6);'
   contain.appendChild(iframe);
 
   document.body.appendChild(contain)
