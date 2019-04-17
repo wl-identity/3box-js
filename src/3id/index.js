@@ -32,7 +32,13 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   authenticateApp = async () => {
     contain.style.display = 'block'
     const auth = caller('auth', { postMessage })
-    const seed = await auth()
+    let seed
+    try {
+      seed = await auth()
+    } catch (e) {
+      contain.style.display = 'none'
+      throw new Error('3Box: User denied access:\n ' + e)
+    }
     contain.style.display = 'none'
     return `0x${seed}`
   }
