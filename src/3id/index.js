@@ -29,18 +29,18 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   })
 
   const postMessage = iframe.contentWindow.postMessage.bind(iframe.contentWindow)
-  authenticateApp = async () => {
+  authenticateApp = async spaces => {
     contain.style.display = 'block'
     const auth = caller('auth', { postMessage })
-    let seed
+    let keys
     try {
-      seed = await auth()
+      keys = await auth(spaces)
     } catch (e) {
       contain.style.display = 'none'
-      throw new Error('3Box: User denied access:\n ' + e)
+      throw new Error('3Box: User denied access:\n ' + e.message)
     }
     contain.style.display = 'none'
-    return `0x${seed}`
+    return keys
   }
 }
 
@@ -68,6 +68,7 @@ class ThreeId {
   }
 
   serializeState () {
+    if (!this.managementAddress) throw new Error('serializing state only supported with eth access')
     let stateObj = {
       managementAddress: this.managementAddress,
       seed: this._mainKeyring.serialize(),
@@ -86,6 +87,13 @@ class ThreeId {
     //      rootstore relation holds
     if (state.managementAddress) {
       this.managementAddress = state.managementAddress.toLowerCase()
+    }
+    if (state.main) {
+      // main and spaces is used by account.3box.io
+      // they contain xprv instead of seeds,
+      // which the keyring can handle
+      state.seed = state.main
+      state.spaceSeeds = state.spaces
     }
     this._mainKeyring = new Keyring(state.seed)
     Object.keys(state.spaceSeeds).map(name => {
@@ -123,11 +131,17 @@ class ThreeId {
 
   async initKeyringByName (name) {
     if (!this._keyrings[name]) {
-      const sig = await utils.openSpaceConsent(this.managementAddress, this._ethereum, name)
-      const entropy = '0x' + utils.sha256(sig.slice(2))
-      const seed = HDNode.mnemonicToSeed(HDNode.entropyToMnemonic(entropy))
-      this._keyrings[name] = new Keyring(seed)
-      localstorage.set(STORAGE_KEY + this.managementAddress, this.serializeState())
+      if (this.managementAddress) {
+        const sig = await utils.openSpaceConsent(this.managementAddress, this._ethereum, name)
+        const entropy = '0x' + utils.sha256(sig.slice(2))
+        const seed = HDNode.mnemonicToSeed(HDNode.entropyToMnemonic(entropy))
+        this._keyrings[name] = new Keyring(seed)
+        localstorage.set(STORAGE_KEY + this.managementAddress, this.serializeState())
+      } else {
+        const keys = await authenticateApp([name])
+        const key = keys.spaces[name]
+        this._keyrings[name] = new Keyring(key)
+      }
       return true
     } else {
       return false
@@ -164,13 +178,10 @@ class ThreeId {
     return _3id
   }
 
-  static async getIdFromAuth(ipfs, opts = {}) {
+  static async getIdFromAuth(spaces, ipfs, opts = {}) {
     await iframeLoadedPromise
-    const seed = await authenticateApp()
-    let serialized3id = JSON.stringify({
-      seed,
-      spaceSeeds: {}
-    })
+    const keys = await authenticateApp(spaces)
+    let serialized3id = JSON.stringify(keys)
     const _3id = new ThreeId(serialized3id, ipfs, opts)
     await _3id._initMuport(opts.muportIpfs || MUPORT_IPFS)
     return _3id

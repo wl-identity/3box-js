@@ -12,8 +12,12 @@ const BASE_PATH = "m/7696500'/0'/0'"
 class Keyring {
   constructor (seed) {
     this._seed = seed
-    const seedNode = HDNode.fromSeed(this._seed)
-    const baseNode = seedNode.derivePath(BASE_PATH)
+    let baseNode
+    if (this._seed.startsWith('xprv')) {
+      baseNode = HDNode.fromExtendedKey(this._seed)
+    } else {
+      baseNode = HDNode.fromSeed(this._seed).derivePath(BASE_PATH)
+    }
 
     this.signingKey = baseNode.derivePath("0")
     this.managementKey = baseNode.derivePath("1")

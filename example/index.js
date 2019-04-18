@@ -9,7 +9,7 @@ bopen.addEventListener('click', event => {
 })
 
 lopen.addEventListener('click', event => {
-  window.Box.open().then(handleBox)
+  window.Box.open(['aaa', 'bbb']).then(handleBox)
 })
 
 const handleBox = box => {

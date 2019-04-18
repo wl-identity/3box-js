@@ -345,10 +345,21 @@ class Box {
     return box
   }
 
-  static async open (opts = {}) {
+  /**
+   * Opens the users 3Box
+   *
+   * @param     {Array<String>}     spaces                  A list of spaces to authorize
+   * @param     {Object}            opts                    Optional parameters
+   * @param     {Function}          opts.consentCallback    A function that will be called when the user has consented to opening the box
+   * @param     {String}            opts.pinningNode        A string with an ipfs multi-address to a 3box pinning node
+   * @param     {Object}            opts.ipfs               A js-ipfs ipfs object
+   * @param     {String}            opts.addressServer      URL of the Address Server
+   * @return    {Box}                                       the 3Box instance for the given address
+   */
+  static async open (spaces, opts = {}) {
     const ipfs = globalIPFS || await initIPFS(opts.ipfs, opts.iframeStore, opts.ipfsOptions)
     globalIPFS = ipfs
-    const _3id = await ThreeId.getIdFromAuth(ipfs, opts)
+    const _3id = await ThreeId.getIdFromAuth(spaces, ipfs, opts)
     const box = new Box(_3id, ipfs, opts)
     await box._load(opts)
     return box
